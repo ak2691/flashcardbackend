@@ -102,9 +102,7 @@ model Game {
   generatedCharacter String
   generatedSecret String
   
-  // System prompts (the initial character/instructions)
-  playerOneDefensePrompt String?
-  playerTwoDefensePrompt String?
+
   
   // Summaries (generated after defense phase)
   playerOneDefenseSummary String?
