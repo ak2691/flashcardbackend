@@ -17,117 +17,170 @@ model User {
   id                String    @id @default(uuid())
   email             String    @unique
   passwordHash      String
-  isVerified        Boolean   @default(false)
+  isEmailVerified   Boolean   @default(false)
   verificationToken String?
-  resetToken        String?
-  resetTokenExpiry  DateTime?
+  verificationExpiry DateTime?
+  
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   
   profile           UserProfile?
   refreshTokens     RefreshToken[]
-}
-
-model RefreshToken {
-  id        String   @id @default(uuid())
-  token     String   @unique
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  gamesAsPlayerOne  Game[]    @relation("PlayerOne")
+  gamesAsPlayerTwo  Game[]    @relation("PlayerTwo")
+  gameTurns         GameTurn[]
 }
 
 model UserProfile {
-  id          String   @id @default(uuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  displayName String
-  avatarUrl   String?
-  bio         String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  decks       Deck[]
-  studyStats  StudyStats[]
-}
-
-model Deck {
-  id          String   @id @default(uuid())
-  profileId   String
-  profile     UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  title       String
-  description String?
-  tags        String[]    // For searchability
-  isPublic    Boolean     @default(false)
-  isOrphaned  Boolean     @default(false)  // Unsaved AI-generated decks
-  viewCount   Int         @default(0)
-  copyCount   Int         @default(0)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  
-  cards       Flashcard[]
-  
-  @@index([profileId])
-  @@index([isPublic, createdAt])
-  @@index([tags])
-}
-
-model Flashcard {
-  id        String   @id @default(uuid())
-  deckId    String
-  deck      Deck     @relation(fields: [deckId], references: [id], onDelete: Cascade)
-  front     String   // Question/Term
-  back      String   // Answer/Definition
-  hint      String?  // Optional hint
-  order     Int      // Position in deck
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  cardProgress CardProgress[]
-  
-  @@index([deckId])
-}
-
-// Spaced Repetition Progress - per user per card
-model CardProgress {
   id              String   @id @default(uuid())
-  flashcardId     String
-  flashcard       Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
-  profileId       String   // Links to UserProfile for study progress
   
-  // SM-2 Algorithm fields
-  easeFactor      Float    @default(2.5)  // Difficulty multiplier (1.3 - 2.5)
-  interval        Int      @default(0)    // Days until next review
-  repetitions     Int      @default(0)    // Successful reviews in a row
-  nextReviewDate  DateTime @default(now())
-  lastReviewDate  DateTime?
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  displayName     String?
+  gamesPlayed     Int      @default(0)
+  wins            Int      @default(0)
+  losses          Int      @default(0)
+  draws           Int      @default(0)
+  
+  // Daily game tracking - resets at midnight UTC
+  dailyGamesPlayed Int     @default(0)
+  lastGameDate     DateTime?
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  
-  @@unique([flashcardId, profileId])
-  @@index([profileId, nextReviewDate])
 }
 
-model StudyStats {
-  id            String   @id @default(uuid())
-  profileId     String
-  profile       UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  date          DateTime @db.Date
-  cardsStudied  Int      @default(0)
-  correctCount  Int      @default(0)
-  studyTimeMs   Int      @default(0)
+model RefreshToken {
+  id          String   @id @default(uuid())
+  token       String   @unique
   
-  @@unique([profileId, date])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  
+  // Optional: track device/session info
+  userAgent   String?
+  ipAddress   String?
 }
 
-// For tracking AI generation requests (rate limiting + analytics)
-model AIGenerationLog {
-  id        String   @id @default(uuid())
-  userId    String
-  prompt    String
-  tokensUsed Int
+model ScenarioTemplate {
+  id              String   @id @default(uuid())
+  name            String   @unique
+  
+  // The AI character description template with placeholders
+  // e.g., "You are a {age} year old {occupation} who works at {location}..."
+  characterTemplate String
+  
+  // The secret/action the AI must protect
+  // e.g., "the code to the safe", "the password to the vault"
+  secretTemplate    String
+  
+  // Possible values for template variables (JSON)
+  // { "age": ["teenage", "elderly", "middle-aged"], "occupation": ["banker", "guard", "secretary"] }
+  variables         Json
+  
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  
+  games             Game[]
+}
+model Game {
+  id String @id @default(uuid())
+  
+  // Players
+  playerOneId String
+  playerOne User @relation("PlayerOne", fields: [playerOneId], references: [id])
+  playerTwoId String?
+  playerTwo User? @relation("PlayerTwo", fields: [playerTwoId], references: [id])
+  
+  // Scenario
+  templateId String
+  template ScenarioTemplate @relation(fields: [templateId], references: [id])
+  generatedCharacter String
+  generatedSecret String
+  
+  // System prompts (the initial character/instructions)
+  playerOneDefensePrompt String?
+  playerTwoDefensePrompt String?
+  
+  // Summaries (generated after defense phase)
+  playerOneDefenseSummary String?
+  playerTwoDefenseSummary String?
+  
+  // Game state
+  status GameStatus @default(WAITING_FOR_PLAYER)
+  phase GamePhase @default(DEFENSE)
+  
+  // HP system
+  playerOneAiHp Int @default(100)
+  playerTwoAiHp Int @default(100)
+  
+  // Game config/limits
+  maxCharsPerMessage Int @default(250)
+  maxTurnsPerPhase Int @default(5)
+  
+  // Win conditions
+  winnerId String?
+  endReason GameEndReason?
+  
+  // Timestamps
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   
-  @@index([userId, createdAt])
+  turns GameTurn[]
+}
+
+model GameTurn {
+  id String @id @default(uuid())
+  gameId String
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  playerId String
+  player User @relation(fields: [playerId], references: [id])
+  
+  phase GamePhase
+  turnNumber Int
+  
+  playerMessage String
+  aiResponse String
+  
+  // Attack phase scoring
+  convictionScore Int?
+  hpDamage Int?
+  
+  createdAt DateTime @default(now())
+}
+
+// For future matchmaking queue
+model MatchmakingQueue {
+  id          String   @id @default(uuid())
+  
+  userId      String   @unique
+  
+  joinedAt    DateTime @default(now())
+  
+  // Could add preferences later (template type, etc.)
+}
+
+enum GameStatus {
+  WAITING_FOR_PLAYER  // Created, waiting for opponent (matchmaking)
+  DEFENSE_PHASE       // Both players preparing defenses
+  ATTACK_PHASE        // Players taking turns attacking
+  COMPLETED           // Game finished
+  ABANDONED           // Player left/timed out
+}
+
+enum GamePhase {
+  DEFENSE
+  ATTACK
+}
+
+enum GameEndReason {
+  HP_DEPLETED         // One AI's HP hit 0
+  FULL_CONVICTION     // AI was fully convinced (gave up secret)
+  CREDITS_EXHAUSTED   // Both players ran out of prompts
+  PLAYER_FORFEIT
+  TIMEOUT
 }
