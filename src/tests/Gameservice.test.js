@@ -17,15 +17,17 @@ jest.unstable_mockModule('../services/aiService.js', () => ({
     default: aiServiceMock
 }));
 
-
-
-
-
-
-const { default: GameService } = await import('../services/gameService.js');
+let GameService;
 
 describe('GameService', () => {
+    let instance;
+
+    beforeAll(async () => {
+        GameService = (await import('../services/gameService.js')).default;
+    });
+
     beforeEach(() => {
+        instance = new GameService();
         mockReset(prismaMock);
         jest.clearAllMocks();
     });
@@ -43,56 +45,29 @@ describe('GameService', () => {
             const mockGame = {
                 id: 'game-1',
                 playerOneId: 'player-1',
-                playerTwoId: null,
-                templateId: 'template-1',
+                playerTwoId: 'player-2',
                 generatedCharacter: 'A suspicious guard',
                 generatedSecret: 'The password is blue42',
-                status: 'WAITING_FOR_PLAYER',
+                status: 'IN_PROGRESS',
                 phase: 'DEFENSE',
                 maxTurnsPerPhase: 5,
                 maxCharsPerMessage: 250,
             };
 
-            prismaMock.scenarioTemplate.findUnique.mockResolvedValue(mockTemplate);
+
             prismaMock.game.create.mockResolvedValue(mockGame);
+            const templateGenerated = jest.spyOn(instance, 'generateTemplate').mockResolvedValue([{ id: '123' }]);
+            const result = await instance.createGameFromMatch('player-1', 'player-2');
 
-            const result = await GameService.createGame('player-1', 'template-1');
-
-            expect(prismaMock.scenarioTemplate.findUnique).toHaveBeenCalledWith({
-                where: { id: 'template-1' },
-            });
-            expect(result.status).toBe('WAITING_FOR_PLAYER');
+            expect(templateGenerated).toHaveBeenCalled();
+            expect(result.status).toBe('IN_PROGRESS');
             expect(result.phase).toBe('DEFENSE');
             expect(result.playerOneId).toBe('player-1');
-            expect(result.playerTwoId).toBeNull();
-        });
-    });
-
-    describe('joinGame', () => {
-        it('should allow player two to join and set status to IN_PROGRESS', async () => {
-            const mockUpdatedGame = {
-                id: 'game-1',
-                playerOneId: 'player-1',
-                playerTwoId: 'player-2',
-                status: 'IN_PROGRESS',
-                phase: 'DEFENSE',
-            };
-
-            prismaMock.game.update.mockResolvedValue(mockUpdatedGame);
-
-            const result = await GameService.joinGame('game-1', 'player-2');
-
-            expect(prismaMock.game.update).toHaveBeenCalledWith({
-                where: { id: 'game-1' },
-                data: {
-                    playerTwoId: 'player-2',
-                    status: 'IN_PROGRESS',
-                },
-            });
-            expect(result.status).toBe('IN_PROGRESS');
             expect(result.playerTwoId).toBe('player-2');
         });
     });
+
+
 
     describe('validateTurn', () => {
         it('should throw error if game is not in progress', () => {
@@ -104,7 +79,7 @@ describe('GameService', () => {
             };
 
             expect(() => {
-                GameService.validateTurn(game, 'player-1', 'Test message');
+                instance.validateTurn(game, 'player-1', 'Test message');
             }).toThrow('Game not in progress');
         });
 
@@ -119,7 +94,7 @@ describe('GameService', () => {
             const longMessage = 'a'.repeat(251);
 
             expect(() => {
-                GameService.validateTurn(game, 'player-1', longMessage);
+                instance.validateTurn(game, 'player-1', longMessage);
             }).toThrow('Message exceeds 250 characters');
         });
 
@@ -132,7 +107,7 @@ describe('GameService', () => {
             };
 
             expect(() => {
-                GameService.validateTurn(game, 'player-3', 'Test');
+                instance.validateTurn(game, 'player-3', 'Test');
             }).toThrow('Player not in this game');
         });
 
@@ -145,7 +120,7 @@ describe('GameService', () => {
             };
 
             expect(() => {
-                GameService.validateTurn(game, 'player-1', 'Valid message');
+                instance.validateTurn(game, 'player-1', 'Valid message');
             }).not.toThrow();
         });
     });
@@ -154,7 +129,7 @@ describe('GameService', () => {
         it('should return correct turn count for player in specific phase', async () => {
             prismaMock.gameTurn.count.mockResolvedValue(3);
 
-            const count = await GameService.getTurnCount('game-1', 'player-1', 'DEFENSE');
+            const count = await instance.getTurnCount('game-1', 'player-1', 'DEFENSE');
 
             expect(prismaMock.gameTurn.count).toHaveBeenCalledWith({
                 where: {
@@ -169,7 +144,7 @@ describe('GameService', () => {
         it('should return 0 when player has no turns in phase', async () => {
             prismaMock.gameTurn.count.mockResolvedValue(0);
 
-            const count = await GameService.getTurnCount('game-1', 'player-1', 'DEFENSE');
+            const count = await instance.getTurnCount('game-1', 'player-1', 'DEFENSE');
 
             expect(count).toBe(0);
         });
@@ -190,9 +165,9 @@ describe('GameService', () => {
                 .mockResolvedValueOnce(4) // Player 1: 4 turns
                 .mockResolvedValueOnce(3); // Player 2: 3 turns
 
-            const transitionSpy = jest.spyOn(GameService, 'transitionToAttack');
+            const transitionSpy = jest.spyOn(instance, 'transitionToAttack');
 
-            await GameService.checkPhaseTransition('game-1');
+            await instance.checkPhaseTransition('game-1');
 
             expect(transitionSpy).not.toHaveBeenCalled();
         });
@@ -218,7 +193,7 @@ describe('GameService', () => {
             aiServiceMock.summarizeDefense.mockResolvedValue('Summary');
             prismaMock.game.update.mockResolvedValue({});
 
-            await GameService.checkPhaseTransition('game-1');
+            await instance.checkPhaseTransition('game-1');
 
             expect(prismaMock.game.update).toHaveBeenCalledWith({
                 where: { id: 'game-1' },
@@ -239,7 +214,7 @@ describe('GameService', () => {
 
             prismaMock.game.findUnique.mockResolvedValue(mockGame);
 
-            await GameService.checkPhaseTransition('game-1');
+            await instance.checkPhaseTransition('game-1');
 
             // Should return early, not count turns
             expect(prismaMock.gameTurn.count).not.toHaveBeenCalled();
@@ -255,7 +230,7 @@ describe('GameService', () => {
 
             prismaMock.game.findUnique.mockResolvedValue(mockGame);
 
-            await GameService.checkGameEnd('game-1');
+            await instance.checkGameEnd('game-1');
 
             expect(prismaMock.gameTurn.count).not.toHaveBeenCalled();
         });
@@ -274,9 +249,9 @@ describe('GameService', () => {
                 .mockResolvedValueOnce(5) // Player 1: 5 turns
                 .mockResolvedValueOnce(3); // Player 2: 3 turns
 
-            const determineWinnerSpy = jest.spyOn(GameService, 'determineWinner');
+            const determineWinnerSpy = jest.spyOn(instance, 'determineWinner');
 
-            await GameService.checkGameEnd('game-1');
+            await instance.checkGameEnd('game-1');
 
             expect(determineWinnerSpy).not.toHaveBeenCalled();
         });
@@ -305,7 +280,7 @@ describe('GameService', () => {
 
             prismaMock.game.update.mockResolvedValue({});
 
-            await GameService.checkGameEnd('game-1');
+            await instance.checkGameEnd('game-1');
 
             expect(prismaMock.game.update).toHaveBeenCalled();
         });
@@ -333,7 +308,7 @@ describe('GameService', () => {
 
             prismaMock.game.update.mockResolvedValue({});
 
-            await GameService.determineWinner('game-1');
+            await instance.determineWinner('game-1');
 
             expect(prismaMock.game.update).toHaveBeenCalledWith({
                 where: { id: 'game-1' },
@@ -359,7 +334,7 @@ describe('GameService', () => {
 
             prismaMock.game.update.mockResolvedValue({});
 
-            await GameService.determineWinner('game-1');
+            await instance.determineWinner('game-1');
 
             expect(prismaMock.game.update).toHaveBeenCalledWith({
                 where: { id: 'game-1' },
@@ -385,7 +360,7 @@ describe('GameService', () => {
 
             prismaMock.game.update.mockResolvedValue({});
 
-            await GameService.determineWinner('game-1');
+            await instance.determineWinner('game-1');
 
             expect(prismaMock.game.update).toHaveBeenCalledWith({
                 where: { id: 'game-1' },
@@ -411,7 +386,7 @@ describe('GameService', () => {
 
             prismaMock.game.update.mockResolvedValue({});
 
-            await GameService.determineWinner('game-1');
+            await instance.determineWinner('game-1');
 
             expect(prismaMock.game.update).toHaveBeenCalledWith({
                 where: { id: 'game-1' },
@@ -441,7 +416,7 @@ describe('GameService', () => {
             prismaMock.gameTurn.count.mockResolvedValue(5); // Already at max
 
             await expect(
-                GameService.submitTurn('game-1', 'player-1', 'Test message')
+                instance.submitTurn('game-1', 'player-1', 'Test message')
             ).rejects.toThrow('Turn limit reached');
         });
 
@@ -478,7 +453,7 @@ describe('GameService', () => {
                 .mockResolvedValueOnce(3) // P1 turns for phase check
                 .mockResolvedValueOnce(2); // P2 turns for phase check
 
-            const result = await GameService.submitTurn('game-1', 'player-1', 'Test message');
+            const result = await instance.submitTurn('game-1', 'player-1', 'Test message');
 
             expect(aiServiceMock.getResponse).toHaveBeenCalledWith(
                 mockGame,

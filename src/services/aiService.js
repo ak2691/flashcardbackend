@@ -138,4 +138,4 @@ Answer with ONLY "YES" or "NO".`
 
 
 };
-export default new AiService();
+export default AiService;

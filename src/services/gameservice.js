@@ -9,7 +9,7 @@ import aiService from './aiService';
 import prisma from './prismaClient';
 
 class GameService {
-    async createGameFromMatch(playerOneId, playerOneId) {
+    async createGameFromMatch(playerOneId, playerTwoId) {
 
 
         // Generate character and secret
@@ -254,4 +254,4 @@ class GameService {
         return template;
     }
 }
-export default new GameService();
+export default GameService;
