@@ -5,8 +5,8 @@
 // we save 
 
 
-import aiService from './aiService';
-import prisma from './prismaClient';
+import aiService from './aiService.js';
+import prisma from './prismaClient.js';
 
 class GameService {
     async createGameFromMatch(playerOneId, playerTwoId) {

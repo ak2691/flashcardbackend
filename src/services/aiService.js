@@ -1,6 +1,6 @@
 
-import { PrismaClient } from "@prisma/client";
-import prisma from './prismaClient';
+
+import prisma from './prismaClient.js';
 
 class AiService {
     buildSystemPrompt(game) {
