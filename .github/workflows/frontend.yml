@@ -34,5 +34,5 @@ jobs:
         context: ./client
         push: true
         tags: |
-          ${{ vars.DOCKERHUB_USERNAME }}/promptvsprompt-frontend:latest
-          ${{ vars.DOCKERHUB_USERNAME }}/promptvsprompt-frontend:${{ github.sha }}
+          ${{ vars.DOCKERHUB_USERNAME }}/promptvsprompt:frontend-latest
+          ${{ vars.DOCKERHUB_USERNAME }}/promptvsprompt:frontend-${{ github.sha }}

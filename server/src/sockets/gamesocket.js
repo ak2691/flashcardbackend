@@ -7,6 +7,7 @@ export default function setupGameSocket(io) {
             const match = matchmakingService.addPlayer(userId, socket.id);
 
             if (match) {
+
                 const game = await GameService.createGameFromMatch(
                     match.playerOne.playerId,
                     match.playerTwo.playerId,
