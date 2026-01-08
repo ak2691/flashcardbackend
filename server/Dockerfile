@@ -3,7 +3,7 @@ FROM node:25-alpine
 WORKDIR /backend
 
 # Install dependencies
-COPY package.json ./
+COPY package*.json ./
 RUN npm install
 
 

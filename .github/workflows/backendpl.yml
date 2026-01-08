@@ -22,9 +22,12 @@ jobs:
         node-version: 22.x
         cache: 'npm'
         cache-dependency-path: server/package-lock.json
-    
-    - run: npm ci
-    - run: npm test
+    - name : Installing dependencies
+      working-directory: ./server
+      run: npm ci
+    - name : Running tests
+      working-directory: ./server
+      run: npm test
 
   docker:
     needs: test
