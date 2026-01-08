@@ -1,32 +1,18 @@
-name: Backend PVP CI/CD
+name: Frontend CI/CD
 
 on:
   push:
     branches: [ "main" ]
     paths:
-      - 'server/**'
-      - '.github/workflows/backendpl.yml'
+      - 'client/**'
+      - '.github/workflows/frontend.yml'
   pull_request:
     branches: [ "main" ]
+    paths:
+      - 'client/**'
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Use Node.js 22.x
-      uses: actions/setup-node@v4
-      with:
-        node-version: 22.x
-        cache: 'npm'
-    
-    - run: npm ci
-    - run: npm test
-
   docker:
-    needs: test
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     
@@ -45,8 +31,8 @@ jobs:
     - name: Build and push
       uses: docker/build-push-action@v6
       with:
-        context: ./server
+        context: ./client
         push: true
         tags: |
-          ${{ vars.DOCKERHUB_USERNAME }}/promptvsprompt:latest
-          ${{ vars.DOCKERHUB_USERNAME }}/promptvsprompt:${{ github.sha }}
+          ${{ vars.DOCKERHUB_USERNAME }}/promptvsprompt-frontend:latest
+          ${{ vars.DOCKERHUB_USERNAME }}/promptvsprompt-frontend:${{ github.sha }}
