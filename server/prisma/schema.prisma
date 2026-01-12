@@ -6,65 +6,67 @@
 
 generator client {
   provider = "prisma-client-js"
+  
  
 }
 
 datasource db {
   provider = "postgresql"
+
  
 }
-model User {
-  id                String    @id @default(uuid())
-  email             String    @unique
-  passwordHash      String
-  isEmailVerified   Boolean   @default(false)
-  verificationToken String?
-  verificationExpiry DateTime?
-  
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  
-  profile           UserProfile?
-  refreshTokens     RefreshToken[]
-  gamesAsPlayerOne  Game[]    @relation("PlayerOne")
-  gamesAsPlayerTwo  Game[]    @relation("PlayerTwo")
-  gameTurns         GameTurn[]
-}
+// model User {
+//   id                String    @id @default(uuid())
+//   email             String    @unique
+//   passwordHash      String
+//   isEmailVerified   Boolean   @default(false)
+//   verificationToken String?
+//   verificationExpiry DateTime?
+//   
+//   createdAt         DateTime  @default(now())
+//   updatedAt         DateTime  @updatedAt
+//   
+//   profile           UserProfile?
+//   refreshTokens     RefreshToken[]
+//   gamesAsPlayerOne  Game[]    @relation("PlayerOne")
+//   gamesAsPlayerTwo  Game[]    @relation("PlayerTwo")
+//   gameTurns         GameTurn[]
+// }
 
-model UserProfile {
-  id              String   @id @default(uuid())
-  
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  displayName     String?
-  gamesPlayed     Int      @default(0)
-  wins            Int      @default(0)
-  losses          Int      @default(0)
-  draws           Int      @default(0)
-  
-  // Daily game tracking - resets at midnight UTC
-  dailyGamesPlayed Int     @default(0)
-  lastGameDate     DateTime?
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-}
+// model UserProfile {
+//   id              String   @id @default(uuid())
+//   
+//   userId          String   @unique
+//   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+//   
+//   displayName     String?
+//   gamesPlayed     Int      @default(0)
+//   wins            Int      @default(0)
+//   losses          Int      @default(0)
+//   draws           Int      @default(0)
+//   
+//   // Daily game tracking - resets at midnight UTC
+//   dailyGamesPlayed Int     @default(0)
+//   lastGameDate     DateTime?
+//   
+//   createdAt       DateTime @default(now())
+//   updatedAt       DateTime @updatedAt
+// }
 
-model RefreshToken {
-  id          String   @id @default(uuid())
-  token       String   @unique
-  
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
-  
-  // Optional: track device/session info
-  userAgent   String?
-  ipAddress   String?
-}
+// model RefreshToken {
+//   id          String   @id @default(uuid())
+//   token       String   @unique
+//   
+//   userId      String
+//   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+//   
+//   expiresAt   DateTime
+//   createdAt   DateTime @default(now())
+//   
+//   // Optional: track device/session info
+//   userAgent   String?
+//   ipAddress   String?
+// }
 
 model ScenarioTemplate {
   id              String   @id @default(uuid())
@@ -86,23 +88,21 @@ model ScenarioTemplate {
   createdAt         DateTime @default(now())
   
   games             Game[]
+  @@map("ScenarioTemplate")
 }
+
 model Game {
   id String @id @default(uuid())
   
   // Players
   playerOneId String
-  playerOne User @relation("PlayerOne", fields: [playerOneId], references: [id])
   playerTwoId String?
-  playerTwo User? @relation("PlayerTwo", fields: [playerTwoId], references: [id])
   
   // Scenario
   templateId String
   template ScenarioTemplate @relation(fields: [templateId], references: [id])
   generatedCharacter String
   generatedSecret String
-  
-
   
   // Summaries (generated after defense phase)
   playerOneDefenseSummary String?
@@ -136,7 +136,6 @@ model GameTurn {
   gameId String
   game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
   playerId String
-  player User @relation(fields: [playerId], references: [id])
   
   phase GamePhase
   turnNumber Int

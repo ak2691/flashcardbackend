@@ -1,14 +1,15 @@
 import useSocket from "../socket/sockethandler";
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 export default function Matchmaking() {
     const { socket, isConnected } = useSocket('http://localhost:3000');
     const [userId, setUserId] = useState('');
-
+    const navigate = useNavigate();
     useEffect(() => {
         if (!socket) return;
 
         socket.on('gameFound', (data) => {
-            console.log('Received:', data);
+            navigate(`/game/${data.gameId}?userId=${userId}`);
         });
 
         return () => {

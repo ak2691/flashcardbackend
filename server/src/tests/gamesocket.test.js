@@ -23,14 +23,26 @@ describe('GameSocket', () => {
         mockSocket = {
             id: 'socket-123',
             emit: jest.fn(),
-            on: jest.fn()
+            on: jest.fn(),
+            join: jest.fn()
         };
 
 
         mockIo = {
             on: jest.fn(),
             emit: jest.fn(),
-            to: jest.fn().mockReturnThis()
+            to: jest.fn().mockReturnThis(),
+            sockets: {
+                sockets: {
+                    get: jest.fn((socketId) => {
+
+                        if (socketId === 1 || socketId === 2) {
+                            return mockSocket;
+                        }
+                        return undefined;
+                    })
+                }
+            }
         };
 
 
@@ -99,7 +111,7 @@ describe('GameSocket', () => {
 
         it('should create game and notify both players when match is found', async () => {
             const userId = 'user-2';
-            const match = { 'playerOne': { 'playerId': 1 }, 'playerTwo': { 'playerId': 2 } };
+            const match = { 'playerOne': { 'playerId': 1, 'socketId': 1 }, 'playerTwo': { 'playerId': 2, 'socketId': 2 } };
             const mockGame = { id: 'game-123' };
 
             // Mock: match found (2 players)
@@ -112,6 +124,9 @@ describe('GameSocket', () => {
             expect(gameServiceMock.createGameFromMatch).toHaveBeenCalledWith(1, 2);
 
             // Should emit gameFound to both players
+            expect(mockIo.sockets.sockets.get).toHaveBeenCalledWith(1);
+            expect(mockIo.sockets.sockets.get).toHaveBeenCalledWith(2);
+            expect(mockSocket.join).toHaveBeenCalledWith(`game-${mockGame.id}`);
             expect(mockIo.emit).toHaveBeenCalledWith('gameFound', mockGame);
 
             // Should NOT emit queueJoined when match is found

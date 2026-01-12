@@ -9,49 +9,58 @@ import aiService from './aiService.js';
 import prisma from './prismaClient.js';
 
 class GameService {
-    async createGameFromMatch(playerOneId, playerTwoId) {
+    static async createGameFromMatch(playerOneId, playerTwoId) {
 
 
         // Generate character and secret
         // Need to generate random template first
-        const template = await this.generateTemplate();
-        const templateId = template[0].id;
-        const character = this.generateCharacter(template);
-        const secret = this.generateSecret(template);
+        try {
+            const template = await this.generateTemplate();
+            const templateId = template[0].id;
+            const character = this.generateCharacter(template);
+            const secret = this.generateSecret(template);
 
-        return await prisma.game.create({
-            data: {
-                playerOneId,
-                playerTwoId,
-                templateId,
-                generatedCharacter: character,
-                generatedSecret: secret,
-                status: 'IN_PROGRESS',
-                phase: 'DEFENSE'
-            }
-        });
+            return await prisma.game.create({
+                data: {
+                    playerOneId,
+                    playerTwoId,
+                    templateId,
+                    generatedCharacter: character,
+                    generatedSecret: secret,
+                    status: 'ATTACK_PHASE',
+                    //testing attack only first
+                    phase: 'ATTACK'
+                }
+            });
+        } catch (error) {
+            console.error('Error creating game from match:', error);
+            throw error;
+        }
+
     }
 
 
-    async submitTurn(gameId, playerId, message) {
+    static async submitTurn(gameId, playerId, message) {
         const game = await prisma.game.findUnique({
             where: { id: gameId },
             include: { template: true }
         });
-
+        this.validateTurn(game, playerId, message);
         //Once this error is caught, send a message in the frontend to wait for their opponent
         const turnCount = await this.getTurnCount(gameId, playerId, game.phase);
+
         if (turnCount >= game.maxTurnsPerPhase) {
             throw new Error('Turn limit reached');
         }
 
 
-        const aiResponse = await aiService.getResponse(
+        /*const aiResponse = await aiService.getResponse(
             game,
             playerId,
             message,
             game.phase
-        );
+        );*/
+        const aiResponse = "Responded";
         const turn = await prisma.gameTurn.create({
             data: {
                 gameId,
@@ -63,11 +72,11 @@ class GameService {
             }
         });
 
-        await this.checkPhaseTransition(gameId);
+        //await this.checkPhaseTransition(gameId);
         await this.checkGameEnd(gameId);
         return turn;
     }
-    validateTurn(game, playerId, message) {
+    static validateTurn(game, playerId, message) {
         if (game.status !== 'IN_PROGRESS') {
             throw new Error('Game not in progress');
         }
@@ -82,7 +91,7 @@ class GameService {
             throw new Error('Player not in this game');
         }
     }
-    async getTurnCount(gameId, playerId, phase) {
+    static async getTurnCount(gameId, playerId, phase) {
         return await prisma.gameTurn.count({
             where: {
                 gameId,
@@ -91,7 +100,7 @@ class GameService {
             }
         });
     }
-    async checkPhaseTransition(gameId) {
+    static async checkPhaseTransition(gameId) {
         const game = await prisma.game.findUnique({
             where: { id: gameId }
         });
@@ -107,7 +116,7 @@ class GameService {
             await this.transitionToAttack(gameId);
         }
     }
-    async transitionToAttack(gameId) {
+    static async transitionToAttack(gameId) {
         const game = await prisma.game.findUnique({
             where: { id: gameId },
             include: { template: true }
@@ -125,7 +134,7 @@ class GameService {
             }
         });
     }
-    async generateDefenseSummary(gameId, playerId) {
+    static async generateDefenseSummary(gameId, playerId) {
         const turns = await prisma.gameTurn.findMany({
             where: {
                 gameId,
@@ -138,7 +147,7 @@ class GameService {
         return await aiService.summarizeDefense(turns);
 
     }
-    async checkGameEnd(gameId) {
+    static async checkGameEnd(gameId) {
         const game = await prisma.game.findUnique({
             where: { id: gameId }
         });
@@ -150,11 +159,13 @@ class GameService {
 
         // Both players finished their attack turns
         if (p1AttackTurns >= game.maxTurnsPerPhase && p2AttackTurns >= game.maxTurnsPerPhase) {
-            await this.determineWinner(gameId);
+            //await this.determineWinner(gameId);
+            return true;
         }
+        return false;
     }
 
-    async determineWinner(gameId) {
+    static async determineWinner(gameId) {
         const game = await prisma.game.findUnique({
             where: { id: gameId }
         });
@@ -218,7 +229,7 @@ class GameService {
 
     }
     //Can fully implement later, users can look at history of games wins and losses
-    async getGame(gameId) {
+    static async getGame(gameId) {
         return await prisma.game.findUnique({
             where: { id: gameId },
             include: {
@@ -233,24 +244,38 @@ class GameService {
     }
 
     //Use of templates - Madlib style so we can keep some consistency
-    generateCharacter(template) {
+    static generateCharacter(template) {
         // TODO: Use template to generate random character
-        return "A suspicious guard";
-    }
-
-
-    generateSecret(template) {
-        // TODO: Use template to generate random secret
-        return "The password is blue42";
-    }
-    async generateTemplate() {
-        const count = await prisma.scenarioTemplate.count();
+        const count = template[0].variables['role'].length;
         const random = Math.floor(Math.random() * count);
-        const template = await prisma.template.findMany({
+
+        return template[0].variables['role'][random];
+    }
+
+
+    static generateSecret(template) {
+        const count = template[0].variables['password'].length;
+        const random = Math.floor(Math.random() * count);
+
+        return template[0].variables['password'][random];
+    }
+    static async generateTemplate() {
+        const count = await prisma.scenarioTemplate.count();
+        if (count === 0) {
+            throw new Error("something wrong here");
+        }
+        const random = Math.floor(Math.random() * count);
+        const template = await prisma.scenarioTemplate.findMany({
             skip: random,
             take: 1,
-            select: { id: true }  // or templateId, depending on your schema
+            select: { id: true, variables: true }
         });
+        // console.log('template:', template);
+        // console.log('template.variables:', template.variables);
+        // console.log('typeof template.variables:', typeof template.variables);
+        if (template.length === 0) {
+            throw new Error('No template found');
+        }
         return template;
     }
 }

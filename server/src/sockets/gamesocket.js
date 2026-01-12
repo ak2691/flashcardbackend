@@ -13,6 +13,8 @@ export default function setupGameSocket(io) {
                     match.playerTwo.playerId,
                 );
 
+                io.sockets.sockets.get(match.playerOne.socketId)?.join(`game-${game.id}`);
+                io.sockets.sockets.get(match.playerTwo.socketId)?.join(`game-${game.id}`);
                 io.to(match.playerOne.socketId).emit('gameFound', game);
                 io.to(match.playerTwo.socketId).emit('gameFound', game);
 
