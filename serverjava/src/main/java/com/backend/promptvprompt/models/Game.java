@@ -59,16 +59,20 @@ public class Game {
     private GamePhase phase = GamePhase.DEFENSE;
 
     // HP system
+    @Builder.Default
     @Column(nullable = false)
     private Integer playerOneAiHp = 100;
 
+    @Builder.Default
     @Column(nullable = false)
     private Integer playerTwoAiHp = 100;
 
     // Game config/limits
+    @Builder.Default
     @Column(nullable = false)
     private Integer maxCharsPerMessage = 250;
 
+    @Builder.Default
     @Column(nullable = false)
     private Integer maxTurnsPerPhase = 5;
 
@@ -90,6 +94,7 @@ public class Game {
     private LocalDateTime updatedAt;
 
     // Transition timestamps
+    @Builder.Default
     @Column(nullable = false)
     private Boolean isTransitioning = false;
 

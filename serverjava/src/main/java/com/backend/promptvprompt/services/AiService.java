@@ -25,14 +25,17 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 public class AiService {
     private final GameTurnRepo gameTurnRepo;
-    private final RestTemplate restTemplate = new RestTemplate();
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
 
-    @Value("${openai.api.key}")
+    @Value("${openai.api.key:nothing}")
     private String openaiApiKey;
 
-    private static final String OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-    private static final String MODEL = "gpt-4.1-nano";
+    @Value("${openai.api.url}")
+    private String OPENAI_API_URL;
+
+    @Value("${openai.api.model}")
+    private String MODEL;
 
     private String buildSystemPrompt(Game game) {
         return String.format("""

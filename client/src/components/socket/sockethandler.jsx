@@ -1,26 +1,82 @@
 import { useEffect, useRef, useState } from 'react';
-import { io } from 'socket.io-client';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 
 export default function useSocket(url) {
-    const socket = useRef(null);
+    const stompClient = useRef(null);
     const [isConnected, setIsConnected] = useState(false);
-
+    const subscriptions = useRef(new Set());
+    const token = localStorage.getItem('accessToken');
     useEffect(() => {
-        socket.current = io(url);
-
-        socket.current.on('connect', () => {
-            console.log('Connected to server');
-            setIsConnected(true);
+        const client = new Client({
+            webSocketFactory: () => new SockJS(url),
+            connectHeaders: { 'Authorization': `Bearer ${token}` },
+            debug: (str) => console.log('STOMP Debug:', str),
+            reconnectDelay: 5000,
+            heartbeatIncoming: 4000,
+            heartbeatOutgoing: 4000,
+            onConnect: () => {
+                console.log('Connected to STOMP server');
+                setIsConnected(true);
+            },
+            onDisconnect: () => {
+                console.log('Disconnected from STOMP server');
+                setIsConnected(false);
+            },
+            onStompError: (frame) => {
+                console.error('STOMP error:', frame);
+            }
         });
 
-        socket.current.on('disconnect', () => {
-            console.log('Disconnected from server');
-            setIsConnected(false);
-        });
+        stompClient.current = client;
+        client.activate();
 
         return () => {
-            socket.current.disconnect();
+            subscriptions.current.forEach((sub) => sub.unsubscribe());
+            subscriptions.current.clear();
+            client.deactivate();
         };
     }, [url]);
-    return { socket: socket.current, isConnected };
+
+    const send = (destination, body) => {
+        const token = localStorage.getItem('accessToken');
+        if (stompClient.current && stompClient.current.connected) {
+            stompClient.current.publish({
+                destination,
+                body: JSON.stringify(body),
+            });
+        } else {
+            console.error('STOMP client not connected');
+        }
+    };
+
+    const subscribe = (destination, callback) => {
+        if (!stompClient.current || !stompClient.current.connected) {
+            console.error('STOMP client not connected');
+            return () => { };
+        }
+
+        const subscription = stompClient.current.subscribe(destination, (message) => {
+            const data = JSON.parse(message.body);
+            callback(data);
+        });
+
+        subscriptions.current.add(subscription);
+
+        console.log(`Subscribed to ${destination} (ID: ${subscription.id})`);
+
+
+        return () => {
+            subscription.unsubscribe();
+            subscriptions.current.delete(subscription);
+            console.log(`Unsubscribed from ${destination} (ID: ${subscription.id})`);
+        };
+    };
+
+    return {
+        stompClient: stompClient.current,
+        isConnected,
+        send,
+        subscribe
+    };
 }

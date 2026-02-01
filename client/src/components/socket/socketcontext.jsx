@@ -3,10 +3,10 @@ import useSocket from './sockethandler';
 const SocketContext = createContext(null);
 
 export function SocketProvider({ children }) {
-    const { socket, isConnected } = useSocket('http://localhost:8080');
+    const { stompClient, isConnected, send, subscribe } = useSocket('http://localhost:8080/ws');
 
     return (
-        <SocketContext.Provider value={{ socket, isConnected }}>
+        <SocketContext.Provider value={{ stompClient, isConnected, send, subscribe }}>
             {children}
         </SocketContext.Provider>
     );

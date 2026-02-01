@@ -1,4 +1,4 @@
-package com.backend.promptvprompt.DTO.Auth;
+package com.backend.promptvprompt.DTO.Game;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,10 +9,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class AuthResponse {
+public class TurnData {
+    private String gameId;
     private String userId;
-    private String email;
-    private String username;
-    private String accessToken;
     private String message;
 }

@@ -9,6 +9,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class JoinGameRoomRequest {
     private String gameId;
-    private String userId;
 
 }

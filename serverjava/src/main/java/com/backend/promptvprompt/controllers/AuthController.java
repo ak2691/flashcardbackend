@@ -1,5 +1,7 @@
 package com.backend.promptvprompt.controllers;
 
+import java.util.Map;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,6 +14,8 @@ import com.backend.promptvprompt.DTO.Auth.LoginRequest;
 import com.backend.promptvprompt.DTO.Auth.RegistrationRequest;
 import com.backend.promptvprompt.services.AuthService;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -21,27 +25,36 @@ import lombok.RequiredArgsConstructor;
 public class AuthController {
     private final AuthService authService;
 
-    /**
-     * Register a new user
-     * 
-     * @param request Registration details (email, username, password)
-     * @return AuthResponse with user details
-     */
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegistrationRequest request) {
-        AuthResponse response = authService.register(request);
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegistrationRequest request,
+            HttpServletResponse response) {
+
+        return new ResponseEntity<>(authService.register(request, response), HttpStatus.CREATED);
     }
 
-    /**
-     * Login with username and password
-     * 
-     * @param request Login credentials (username, password)
-     * @return AuthResponse with user details
-     */
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        AuthResponse response = authService.login(request);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
+
+        return ResponseEntity.ok(authService.login(request, response));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refresh(
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        return ResponseEntity.ok(authService.refreshAccessToken(request, response));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, String>> logout(
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        authService.logout(request, response);
+        return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
+    }
+
+    @PostMapping("/auth")
+    public ResponseEntity<String> auth(HttpServletRequest request, HttpServletResponse response) {
+        return ResponseEntity.ok("You are authenticated");
     }
 }

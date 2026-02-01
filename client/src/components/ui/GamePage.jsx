@@ -12,12 +12,12 @@ import ScoreDisplay from '../ui-components/ScoreDisplay';
 import TransitionCountdown from '../ui-components/TransitionCountdown';
 export default function GamePage() {
     const [message, setMessage] = useState('');
-    const { socket, isConnected } = useSocketContext();
+    const { stompClient, isConnected, send, subscribe } = useSocketContext();
     const MAX_CHARS = 250;
     const [searchParams] = useSearchParams();
     const { gameId } = useParams();
     const [isSpectating, setIsSpectating] = useState(false);
-    const userId = searchParams.get('userId');
+
     const [myMessageCount, setMyMessageCount] = useState(0);
     const [opponentMessageCount, setOpponentMessageCount] = useState(0);
     const [gameComplete, setGameComplete] = useState(false);
@@ -30,49 +30,64 @@ export default function GamePage() {
     const [countdown, setCountdown] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     useEffect(() => {
-        if (!socket) return;
-        socket.emit('joinGameRoom', { gameId, userId });
-        const loadGameState = async () => {
-            setIsLoading(true);
-            try {
-                const data = await fetchGameState(gameId, userId);
-                setMyMessageCount(data.myMessageCount);
-                setOpponentMessageCount(data.opponentMessageCount);
-                setPhase(data.game.phase);
-                setGameComplete(data.isGameComplete);
-                //console.log("CALLING LOAD GAME STATE");
-                //console.log(data.transition.isTransitioning);
-                if (data.isGameComplete) {
-                    setWinnerId(data.winnerId);
+        if (!isConnected) return;
+
+
+        setIsLoading(true);
+
+        // Subscribe to game responses
+        const unsubscribeGameResponse = subscribe('/user/queue/game-response', (response) => {
+            if (response.status === 'error') {
+                if (response.errorType === 'GAME_NOT_FOUND') {
+                    console.log('Game not found');
+                    // Handle game not found - maybe navigate away
+                } else if (response.errorType === 'NOT_A_PLAYER') {
+                    console.log('User not in game, spectating mode');
+                    setIsSpectating(true);
                 }
-                if (data.transition.isTransitioning) {
-                    setIsTransitioning(true);
-                    setCountdown(data.transition.countdown);
-                } else {
-                    setIsTransitioning(false);
-                    setCountdown(null);
-                }
-                if (data.gameTurns && data.gameTurns.length > 0) {
-                    console.log(data.gameTurns);
-                    const loadedMessages = data.gameTurns.flatMap(turn =>
-                        [
-                            { type: 'user', content: turn.playerMessage },
-                            { type: 'ai', content: turn.aiResponse }
-                        ]
-                    );
-                    console.log('loadedMessages structure:', loadedMessages);
-                    console.log('First message:', loadedMessages[0]);
-                    setMessages(loadedMessages);
-                }
-            } catch (error) {
-                console.log('User not in game, spectating mode', error);
-                setIsSpectating(true);
+                setIsLoading(false);
+                return;
             }
+
+            // Success - load game state from response.data
+            const data = response.gameData;
+            setMyMessageCount(data.myMessageCount);
+            setOpponentMessageCount(data.opponentMessageCount);
+            setPhase(data.phase);
+            setGameComplete(data.isGameComplete);
+
+            if (data.isGameComplete) {
+                setWinnerId(data.game.winnerId);
+            }
+
+            if (data.transition && data.transition.isTransitioning) {
+                setIsTransitioning(true);
+                setCountdown(data.transition.countdown);
+            } else {
+                setIsTransitioning(false);
+                setCountdown(null);
+            }
+
+            if (data.gameTurns && data.gameTurns.length > 0) {
+                console.log(data.gameTurns);
+                const loadedMessages = data.gameTurns.flatMap(turn =>
+                    [
+                        { type: 'user', content: turn.playerMessage },
+                        { type: 'ai', content: turn.aiResponse }
+                    ]
+                );
+                console.log('loadedMessages structure:', loadedMessages);
+                console.log('First message:', loadedMessages[0]);
+                setMessages(loadedMessages);
+            }
+
             setIsLoading(false);
-        };
+        });
 
+        // Send join game room request
+        send('/app/game/joinGameRoom', { gameId });
 
-        socket.on('turnSubmitted', (data) => {
+        /*socket.on('turnSubmitted', (data) => {
             // data could be: { userId, messageCount }
             if (data.userId === userId) {
                 setMyMessageCount(data.messageCount);
@@ -101,30 +116,28 @@ export default function GamePage() {
                 console.log(data);
             }
 
-        })
-        loadGameState();
+        })*/
+
         return () => {
-            socket.off('turnSubmitted');
-            socket.off('gameComplete');
-            socket.off('transitionPhase');
+            unsubscribeGameResponse();
         };
 
-    }, [gameId, userId, socket]);
+    }, [gameId]);
     const handleSubmitTurn = async (message) => {
         try {
-            await SubmitTurn({ gameId, userId, message });
+            await SubmitTurn({ gameId, message });
         } catch (error) {
             console.error('Error submitting turn:', error);
         }
 
 
     };
-    const handleSubmit = () => {
+    /*const handleSubmit = () => {
         if (message.trim()) {
             handleSubmitTurn(message);
             setMessage('');
         }
-    };
+    };*/
 
     return (
         <>

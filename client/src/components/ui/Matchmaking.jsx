@@ -3,27 +3,38 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSocketContext } from "../socket/socketcontext";
 export default function Matchmaking() {
-    const { socket, isConnected } = useSocketContext();
-    const [userId, setUserId] = useState('');
+    const { stompClient, isConnected, send, subscribe } = useSocketContext();
+
     const navigate = useNavigate();
     useEffect(() => {
-        if (!socket) return;
-        if (!userId) return;
+        if (!isConnected) return;
 
-        socket.on('gameFound', (data) => {
-            navigate(`/game/${data.id}?userId=${userId}`);
+
+        const unsubscribeQueueJoined = subscribe(`/user/queue/queueJoined`, (data) => {
+            console.log('Successfully joined queue: You are in position', data.position);
+            // Show toast notification, update UI, etc.
         });
 
+        // Subscribe to game found notifications
+        const unsubscribeGameFound = subscribe(`/user/queue/gameFound`, (data) => {
+            console.log("GAME FOUND");
+            navigate(`/game/${data.id}`);
+        });
+
+        // Cleanup both subscriptions
         return () => {
-            socket.off('gameFound');
+            unsubscribeQueueJoined();
+            unsubscribeGameFound();
         };
-    }, [socket, userId]);
+    }, [isConnected, subscribe, navigate]);
 
     const handleJoinQueue = () => {
-        if (userId.trim()) {
-            socket.emit('joinQueue', { userId: userId });
-        }
+        const token = localStorage.getItem('accessToken');
+
+        send('/app/joinQueue', {});
+
     };
+
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-[#222831] gap-6">
@@ -31,18 +42,10 @@ export default function Matchmaking() {
                 Status: {isConnected ? 'Connected' : 'Disconnected'}
             </p>
 
-            <input
-                type="text"
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                placeholder="Enter User ID"
-                className="px-6 py-3 text-lg bg-[#393E46] text-[#DFD0B8] border-2 border-[#948979] rounded-lg focus:outline-none focus:border-[#DFD0B8]"
-            />
-
             <button
                 onClick={handleJoinQueue}
                 className="px-12 py-4 text-lg font-medium text-[#DFD0B8] bg-[#393E46] border-2 border-[#948979] rounded-lg hover:bg-[#948979] hover:text-[#222831] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={!userId.trim()}
+
             >
                 Join Queue
             </button>

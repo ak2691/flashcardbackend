@@ -3,9 +3,12 @@ package com.backend.promptvprompt.services;
 import java.time.Instant;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.springframework.stereotype.Service;
+
 import com.backend.promptvprompt.DTO.Matchmaking.Match;
 import com.backend.promptvprompt.DTO.Matchmaking.PlayerQueue;
 
+@Service
 public class MatchmakingService {
     private final ConcurrentLinkedQueue<PlayerQueue> queue = new ConcurrentLinkedQueue<>();
 

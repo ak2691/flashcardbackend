@@ -37,4 +37,8 @@ public class RefreshToken {
     private String userAgent;
 
     private String ipAddress;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean revoked = false;
 }

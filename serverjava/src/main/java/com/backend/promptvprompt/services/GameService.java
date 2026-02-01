@@ -163,14 +163,14 @@ public class GameService {
     }
 
     @Transactional
-    public Game endTransition(String gameId) {
+    public void endTransition(String gameId) {
         Game game = gameRepo.findById(gameId)
                 .orElseThrow(() -> new RuntimeException("Game not found"));
 
         game.setIsTransitioning(false);
         game.setTransitionEndsAt(null);
 
-        return gameRepo.save(game);
+        gameRepo.save(game);
     }
 
     public String generateDefenseSummary(String gameId, String playerId) {

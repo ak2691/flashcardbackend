@@ -10,6 +10,18 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class GameFoundResponse {
-    private Game game;
+    private String id;
+    private String playerOneId;
+    private String playerTwoId;
+    private String status;
+    private String phase;
+
+    public GameFoundResponse(Game game) {
+        this.id = game.getId();
+        this.playerOneId = game.getPlayerOne().getId();
+        this.playerTwoId = game.getPlayerTwo().getId();
+        this.status = game.getStatus().name();
+        this.phase = game.getPhase().name();
+    }
 
 }

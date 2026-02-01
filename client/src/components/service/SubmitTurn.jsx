@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 
 export const SubmitTurn = async (turnData) => {
-    const response = await fetch(`http://localhost:3000/api/game/${turnData.gameId}/submit-turn`, {
+    const response = await fetch(`http://localhost:8080/api/game/${turnData.gameId}/submit-turn`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
